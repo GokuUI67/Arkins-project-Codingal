@@ -1,0 +1,12 @@
+from tkinter import *
+root = Tk()
+root.title('Number Pad')
+root.geometry('250x300')
+Num1 = Entry(root)
+Num2 = Entry(root)
+product = Num1.get()*Num2.get()
+label = Label(text=product)
+Num1.pack()
+Num2.pack()
+label.pack()
+root.mainloop()
