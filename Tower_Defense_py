@@ -1,0 +1,155 @@
+import pygame
+import math
+
+pygame.init()
+
+# ------------------ SETTINGS ------------------
+WIDTH, HEIGHT = 800, 600
+FPS = 60
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Python Tower Defense")
+
+WHITE = (255, 255, 255)
+RED = (200, 50, 50)
+GREEN = (50, 200, 50)
+BLUE = (50, 50, 200)
+GRAY = (120, 120, 120)
+BLACK = (0, 0, 0)
+
+clock = pygame.time.Clock()
+font = pygame.font.SysFont(None, 28)
+
+# ------------------ PATH ------------------
+path = [
+    (0, 300),
+    (200, 300),
+    (200, 100),
+    (500, 100),
+    (500, 400),
+    (800, 400)
+]
+
+# ------------------ ENEMY ------------------
+class Enemy:
+    def __init__(self):
+        self.x, self.y = path[0]
+        self.health = 100
+        self.speed = 1
+        self.path_index = 0
+        self.radius = 12
+
+    def move(self):
+        if self.path_index + 1 >= len(path):
+            return True  # reached end
+
+        target_x, target_y = path[self.path_index + 1]
+        dx = target_x - self.x
+        dy = target_y - self.y
+        dist = math.hypot(dx, dy)
+
+        if dist < self.speed:
+            self.path_index += 1
+        else:
+            self.x += self.speed * dx / dist
+            self.y += self.speed * dy / dist
+
+        return False
+
+    def draw(self):
+        pygame.draw.circle(screen, RED, (int(self.x), int(self.y)), self.radius)
+        pygame.draw.rect(
+            screen,
+            GREEN,
+            (self.x - 15, self.y - 20, 30 * (self.health / 100), 5),
+        )
+
+# ------------------ TOWER ------------------
+class Tower:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.range = 120
+        self.cooldown = 0
+
+    def draw(self):
+        pygame.draw.circle(screen, BLUE, (self.x, self.y), 15)
+        pygame.draw.circle(screen, BLUE, (self.x, self.y), self.range, 1)
+
+    def shoot(self, enemies):
+        if self.cooldown > 0:
+            self.cooldown -= 1
+            return
+
+        for enemy in enemies:
+            dist = math.hypot(enemy.x - self.x, enemy.y - self.y)
+            if dist <= self.range:
+                enemy.health -= 25
+                self.cooldown = 30
+                break
+
+# ------------------ GAME STATE ------------------
+enemies = []
+towers = []
+money = 200
+wave = 1
+spawn_timer = 0
+lives = 10
+
+# ------------------ MAIN LOOP ------------------
+running = True
+while running:
+    clock.tick(FPS)
+    screen.fill(WHITE)
+
+    # EVENTS
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if money >= 100:
+                mx, my = pygame.mouse.get_pos()
+                towers.append(Tower(mx, my))
+                money -= 100
+
+    # SPAWN ENEMIES
+    spawn_timer += 1
+    if spawn_timer > 60:
+        enemies.append(Enemy())
+        spawn_timer = 0
+
+    # MOVE ENEMIES
+    for enemy in enemies[:]:
+        if enemy.move():
+            enemies.remove(enemy)
+            lives -= 1
+        elif enemy.health <= 0:
+            enemies.remove(enemy)
+            money += 25
+
+    # TOWERS ATTACK
+    for tower in towers:
+        tower.shoot(enemies)
+        tower.draw()
+
+    # DRAW PATH
+    pygame.draw.lines(screen, GRAY, False, path, 5)
+
+    # DRAW ENEMIES
+    for enemy in enemies:
+        enemy.draw()
+
+    # UI
+    ui = font.render(f"Money: {money}  Lives: {lives}", True, BLACK)
+    screen.blit(ui, (10, 10))
+
+    if lives <= 0:
+        game_over = font.render("GAME OVER", True, RED)
+        screen.blit(game_over, (WIDTH // 2 - 80, HEIGHT // 2))
+        pygame.display.update()
+        pygame.time.wait(2000)
+        break
+
+    pygame.display.update()
+
+pygame.quit()
